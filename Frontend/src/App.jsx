@@ -10,9 +10,6 @@ import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 
 import ReactMarkdown from "react-markdown";
-// Uncomment below for syntax highlight inside markdown
-// import rehypeHighlight from "rehype-highlight";
-// import "highlight.js/styles/github.css";
 
 export default function App() {
   const [code, setCode] = useState("");
