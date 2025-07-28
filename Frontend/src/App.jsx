@@ -9,8 +9,10 @@ import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
 import { python } from "@codemirror/lang-python";
 
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { okaidia, solarizedlight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import ReactMarkdown from "react-markdown";
+// Uncomment below for syntax highlight inside markdown
+// import rehypeHighlight from "rehype-highlight";
+// import "highlight.js/styles/github.css";
 
 export default function App() {
   const [code, setCode] = useState("");
@@ -28,23 +30,40 @@ export default function App() {
     setCode(stubs[language]);
   }, [language]);
 
-  // Apply theme to body
+  // Apply theme class to body on theme change
   useEffect(() => {
     document.body.className = theme;
   }, [theme]);
 
-  // Mapping language keys to CodeMirror language extensions
+  // Language extensions for CodeMirror
   const languageExtensions = {
     cpp: cpp(),
     java: java(),
     py: python(),
   };
 
-  // Mapping language keys to Prism syntax highlighter languages
+  // Prism language map (not needed for react-markdown but kept for reference)
   const prismLanguageMap = {
     cpp: "cpp",
     java: "java",
     py: "python",
+  };
+
+  // Unpack output if it is a JSON-stringified string wrapped in quotes
+  // If parse fails, fallback to original output
+  const getParsedOutput = () => {
+    if (
+      typeof output === "string" &&
+      output.startsWith('"') &&
+      output.endsWith('"')
+    ) {
+      try {
+        return JSON.parse(output);
+      } catch {
+        return output;
+      }
+    }
+    return output;
   };
 
   // Render job timing details
@@ -55,8 +74,7 @@ export default function App() {
     let result = "";
 
     SubmittedAt = moment(SubmittedAt).toString();
-    result += `Job Submitted At: ${SubmittedAt}`;
-    result += "\n";
+    result += `Job Submitted At: ${SubmittedAt}\n`;
 
     if (!StartedAt || !CompletedAt) return result;
 
@@ -65,16 +83,12 @@ export default function App() {
     const diff = end.diff(start, "seconds", true);
 
     result += `Execution Time: ${diff.toFixed(3)}s`;
-
     return result;
   };
 
-  // Submit code to backend and poll status/output
+  // Handle submit code
   async function handleSubmit() {
-    const payload = {
-      language: language,
-      code: code,
-    };
+    const payload = { language, code };
 
     try {
       setJobid("");
@@ -109,10 +123,22 @@ export default function App() {
             clearInterval(intervalId);
           } else {
             setStatus("Error: please retry!");
-            setOutput(error);
+
+            let errorMsg = "";
+            if (typeof error === "string") {
+              errorMsg = error;
+            } else if (error && typeof error === "object") {
+              if (error.stderr) errorMsg = error.stderr;
+              else if (error.message) errorMsg = error.message;
+              else errorMsg = JSON.stringify(error);
+            } else {
+              errorMsg = "Unknown error";
+            }
+
+            setOutput(errorMsg);
             clearInterval(intervalId);
           }
-        } catch (err) {
+        } catch {
           setStatus("Error fetching job status");
           setOutput("Error occurred while getting job status.");
           clearInterval(intervalId);
@@ -163,7 +189,7 @@ export default function App() {
         </label>
       </div>
 
-      {/* CodeMirror editor replacing textarea */}
+      {/* CodeMirror code editor */}
       <CodeMirror
         value={code}
         height="350px"
@@ -193,17 +219,17 @@ export default function App() {
       <p>{jobid && `JobID : ${jobid}`}</p>
       <pre style={{ whiteSpace: "pre-wrap" }}>{renderTimeDetails()}</pre>
 
-      {/* Output section with syntax highlighting */}
-      <div className="output-window" aria-live="polite">
-        <SyntaxHighlighter
-          language={prismLanguageMap[language]}
-          style={theme === "light" ? solarizedlight : okaidia}
-          wrapLines={true}
-          showLineNumbers={false}
-          customStyle={{ margin: 0, padding: "12px 18px", borderRadius: "8px" }}
+      {/* Output rendered as Markdown */}
+      <div
+        className="output-window"
+        aria-live="polite"
+        style={{ whiteSpace: "normal" }}
+      >
+        <ReactMarkdown
+        // rehypePlugins={[rehypeHighlight]}  // Uncomment if you want code block syntax highlight inside markdown
         >
-          {output}
-        </SyntaxHighlighter>
+          {getParsedOutput()}
+        </ReactMarkdown>
       </div>
     </div>
   );
