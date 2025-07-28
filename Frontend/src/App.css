@@ -105,7 +105,9 @@ body,
   margin-bottom: 1rem;
   transition: background 0.2s;
 }
-
+.submit-btn:disabled {
+  cursor: not-allowed;
+}
 .submit-btn:hover {
   background: #184d6d;
   color: #fff;

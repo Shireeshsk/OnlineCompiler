@@ -3,7 +3,7 @@ import axios from "axios";
 import stubs from "./Stubs";
 import moment from "moment";
 import "./App.css";
-
+import Code from "./Code";
 import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { java } from "@codemirror/lang-java";
@@ -18,6 +18,8 @@ export default function App() {
   const [status, setStatus] = useState("");
   const [jobid, setJobid] = useState("");
   const [jobDetails, setJobDetails] = useState(null);
+  const [executing, setExecuting] = useState(false);
+
 
   // Theme state: "light" or "dark"
   const [theme, setTheme] = useState("light");
@@ -84,9 +86,11 @@ export default function App() {
   };
 
   // Handle submit code
-  async function handleSubmit() {
+ async function handleSubmit() {
     const payload = { language, code };
 
+    setExecuting(true); // set before starting
+    
     try {
       setJobid("");
       setStatus("");
@@ -114,10 +118,11 @@ export default function App() {
 
             if (jobStatus === "Pending") {
               setOutput("Waiting for job to complete...");
-              return;
+              return; // keep waiting, don't clear executing
             }
             setOutput(jobOutput);
             clearInterval(intervalId);
+            setExecuting(false); // stop executing when job done
           } else {
             setStatus("Error: please retry!");
 
@@ -134,11 +139,13 @@ export default function App() {
 
             setOutput(errorMsg);
             clearInterval(intervalId);
+            setExecuting(false); // stop executing on error
           }
-        } catch {
+        } catch (err) {
           setStatus("Error fetching job status");
           setOutput("Error occurred while getting job status.");
           clearInterval(intervalId);
+          setExecuting(false); // stop executing on error
         }
       }, 1000);
     } catch ({ response }) {
@@ -147,8 +154,10 @@ export default function App() {
       } else {
         setOutput("Error in connecting to server!");
       }
+      setExecuting(false); // stop executing if initial submit fails
     }
   }
+
 
   return (
     <div className={`app-container ${theme}`}>
@@ -186,29 +195,22 @@ export default function App() {
         </label>
       </div>
 
-      {/* CodeMirror code editor */}
-      <CodeMirror
-        value={code}
-        height="350px"
-        extensions={[languageExtensions[language]]}
-        onChange={setCode}
-        theme={theme === "light" ? "light" : "dark"}
-        basicSetup={{
-          lineNumbers: true,
-          highlightActiveLineGutter: true,
-          highlightActiveLine: true,
-          foldGutter: true,
-          syntaxHighlighting: true,
-          indentOnInput: true,
-          autocompletion: false,
-          bracketMatching: true,
-          closeBrackets: true,
-          defaultKeymap: true,
-        }}
-      />
+      {language == "cpp" && (
+        <Code code={code} setCode={setCode} theme={theme} language={language} />
+      )}
+      {language == "py" && (
+        <Code code={code} setCode={setCode} theme={theme} language={language} />
+      )}
+      {language == "java" && (
+        <Code code={code} setCode={setCode} theme={theme} language={language} />
+      )}
 
       <br />
-      <button className="submit-btn" onClick={handleSubmit}>
+      <button
+        className="submit-btn"
+        onClick={handleSubmit}
+        disabled={executing}
+      >
         Submit
       </button>
 
